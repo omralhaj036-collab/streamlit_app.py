@@ -1,191 +1,179 @@
 import streamlit as st
 import requests
-import json
 
 # --- إعدادات الصفحة ---
-st.set_page_config(page_title="Atheer Technology | أثير للتقنية", layout="wide")
+st.set_page_config(page_title="Atheer AI Pro", layout="wide", initial_sidebar_state="collapsed")
 
-# --- التصميم الفاخر (CSS المتقدم لمحاكاة الصورة) ---
+# --- إدارة التنقل (Navigation Logic) ---
+if 'page' not in st.session_state:
+    st.session_state.page = 'home'
+
+# --- التصميم الفاخر (مطابق للصورة 100%) ---
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap');
     
-    /* الخلفية الإلكترونية المتحركة */
-    .stApp {
-        background: #000;
-        background-image: 
-            radial-gradient(circle at 20% 30%, rgba(212, 175, 55, 0.15) 0%, transparent 50%),
-            url('https://www.transparenttextures.com/patterns/carbon-fibre.png');
+    html, body, [data-testid="stAppViewContainer"] {
+        background-color: #000000 !important;
         font-family: 'Cairo', sans-serif;
-    }
-
-    /* تأثير الخطوط النيوتنية */
-    .stApp::before {
-        content: "";
-        position: fixed;
-        top: 0; left: 0; width: 100%; height: 100%;
-        background: url('https://www.transparenttextures.com/patterns/microfab.png');
-        opacity: 0.2;
-        z-index: -1;
-        animation: pulse 5s infinite alternate;
-    }
-
-    @keyframes pulse { from { opacity: 0.1; } to { opacity: 0.3; } }
-
-    /* الشعار الذهبي الكبير */
-    .main-header {
-        text-align: center;
-        padding: 20px;
-        background: linear-gradient(180deg, #d4af37 0%, #8a6d3b 100%);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        font-size: 4.5rem !important;
-        font-weight: 900;
-        filter: drop-shadow(0 0 15px rgba(212, 175, 55, 0.5));
-    }
-
-    /* شبكة النوافذ (مطابقة للصورة) */
-    .grid-container {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 25px;
-        max-width: 900px;
-        margin: auto;
         direction: rtl;
     }
 
-    /* تصميم النافذة الذهبية (مثل الصورة تماماً) */
-    .nav-card {
-        background: rgba(20, 20, 20, 0.8);
+    /* خلفية الجزيئات النيوتنية المتحركة */
+    .particles-bg {
+        position: fixed;
+        top: 0; left: 0; width: 100%; height: 100%;
+        background: radial-gradient(circle at center, #1a1a1a 0%, #000 100%);
+        z-index: -1;
+    }
+
+    /* شعار أثير الذهبي (الدرع الكبير) */
+    .atheer-shield {
+        width: 180px;
+        height: 180px;
+        margin: 0 auto 30px;
+        background: linear-gradient(135deg, #d4af37 0%, #f9f295 45%, #b38728 70%, #f9f295 100%);
+        border-radius: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 0 30px rgba(212, 175, 55, 0.5);
+        clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+    }
+
+    /* هندسة النوافذ (Grid) */
+    .main-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 20px;
+        max-width: 800px;
+        margin: 0 auto;
+    }
+
+    /* تصميم النافذة الذهبية (مثل الصورة) */
+    .icon-box {
+        background: rgba(20, 20, 20, 0.9);
         border: 2px solid #d4af37;
         border-radius: 15px;
-        padding: 20px;
+        padding: 15px;
         text-align: center;
-        position: relative;
-        transition: 0.3s ease;
+        transition: 0.3s;
         cursor: pointer;
-        box-shadow: 0 0 10px rgba(212, 175, 55, 0.2);
-        clip-path: polygon(10% 0, 90% 0, 100% 15%, 100% 85%, 90% 100%, 10% 100%, 0 85%, 0 15%);
+        height: 140px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        clip-path: polygon(15% 0, 85% 0, 100% 15%, 100% 85%, 85% 100%, 15% 100%, 0 85%, 0 15%);
+        box-shadow: inset 0 0 15px rgba(212, 175, 55, 0.1);
     }
 
-    .nav-card:hover {
-        background: rgba(212, 175, 55, 0.1);
-        transform: scale(1.05);
-        box-shadow: 0 0 25px #d4af37;
+    .icon-box:hover {
+        background: #d4af37;
+        box-shadow: 0 0 30px #d4af37;
     }
 
-    .nav-card i {
-        color: #d4af37;
+    .icon-box:hover h3, .icon-box:hover i {
+        color: #000 !important;
+    }
+
+    .icon-box i {
         font-size: 2.5rem;
-        display: block;
+        color: #d4af37;
         margin-bottom: 10px;
     }
 
-    .nav-card h3 {
+    .icon-box h3 {
         color: #d4af37;
-        font-size: 0.85rem;
+        font-size: 0.8rem;
         font-weight: bold;
         margin: 0;
     }
 
-    /* إخفاء أزرار سترمليت الافتراضية لجعلها تبدو كأنها جزء من البطاقة */
-    .stButton > button {
-        opacity: 0;
-        position: absolute;
-        top: 0; left: 0; width: 100%; height: 100%;
-        z-index: 10;
-        cursor: pointer;
+    /* صفحة الاشتراك الزجاجية الزرقاء */
+    .sub-page {
+        background: rgba(0, 50, 100, 0.2);
+        backdrop-filter: blur(20px);
+        border: 2px solid #00f2ff;
+        border-radius: 30px;
+        padding: 50px;
+        max-width: 600px;
+        margin: 50px auto;
+        text-align: center;
+        box-shadow: 0 0 50px rgba(0, 242, 255, 0.3);
     }
 
-    /* صندوق النتائج الذكي */
-    .bot-response {
-        background: rgba(0,0,0,0.9);
-        border: 2px solid #d4af37;
-        color: #fff;
-        padding: 30px;
-        border-radius: 20px;
-        margin-top: 30px;
-        box-shadow: 0 0 30px rgba(212, 175, 55, 0.3);
-        direction: rtl;
-        font-size: 1.1rem;
+    /* أزرار سترمليت المخفية */
+    .stButton>button {
+        background: transparent;
+        border: none;
+        color: transparent;
+        width: 100%;
+        height: 140px;
+        position: absolute;
+        top: 0; left: 0;
+        z-index: 10;
     }
 </style>
+<div class="particles-bg"></div>
 """, unsafe_allow_html=True)
 
-# --- محرك البوت الذكي (Groq) ---
-def atheer_bot(category, prompt):
-    api_key = "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"
-    url = "https://api.groq.com/openai/v1/chat/completions"
-    headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
-    payload = {
-        "model": "llama-3.1-8b-instant",
-        "messages": [
-            {"role": "system", "content": f"أنت خبير تقني في منصة أثير للتقنية. مهمتك هي: {category}. أجب بذكاء واحترافية."},
-            {"role": "user", "content": prompt}
-        ]
-    }
-    try:
-        response = requests.post(url, headers=headers, json=payload, timeout=10)
-        return response.json()['choices'][0]['message']['content']
-    except Exception as e:
-        return "⚠️ عذراً، نوافذ أثير تتطلب اتصالاً أقوى.. حاول مجدداً."
+# --- الصفحة الرئيسية (Home) ---
+if st.session_state.page == 'home':
+    # اللوجو
+    st.markdown('<div class="atheer-shield"><h1 style="color:#000; font-size:1.5rem; text-align:center;">أثير<br>للتقنية</h1></div>', unsafe_allow_html=True)
+    st.markdown('<p style="text-align:center; color:#d4af37; letter-spacing:5px; margin-bottom:50px;">ATHEER TECHNOLOGY SOLUTIONS</p>', unsafe_allow_html=True)
 
-# --- الواجهة البرمجية ---
+    # النوافذ (Grid)
+    col1, col2, col3 = st.columns(3)
+    
+    items = [
+        {"icon": "🛡️", "title": "حماية المتجر الذكي", "id": "ai"},
+        {"icon": "⚙️", "title": "تحسين محركات البحث", "id": "ai"},
+        {"icon": "🧠", "title": "تشخيص الأنظمة", "id": "ai"},
+        {"icon": "📊", "title": "تحليلات المبيعات", "id": "ai"},
+        {"icon": "📈", "title": "المسار الرقمي", "id": "ai"},
+        {"icon": "👤", "title": "الهوية الرقمية", "id": "ai"},
+        {"icon": "👁️", "title": "الرؤى", "id": "ai"},
+        {"icon": "🎓", "title": "الخبرة", "id": "ai"},
+        {"icon": "💎", "title": "باقة الاشتراك", "id": "sub"}, # هذا الزر سينقلنا لصفحة الاشتراك
+    ]
 
-st.markdown("<h1 class='main-header'>أثير للتقنية</h1>", unsafe_allow_html=True)
-st.markdown("<p style='text-align:center; color:#d4af37; letter-spacing:4px; font-weight:bold;'>ATHEER TECHNOLOGY SOLUTIONS</p>", unsafe_allow_html=True)
+    for i, item in enumerate(items):
+        with [col1, col2, col3][i % 3]:
+            st.markdown(f"""
+                <div class="icon-box">
+                    <div style="font-size:2.5rem;">{item['icon']}</div>
+                    <h3>{item['title']}</h3>
+                </div>
+            """, unsafe_allow_html=True)
+            if st.button("", key=f"btn_{i}"):
+                if item['id'] == 'sub':
+                    st.session_state.page = 'subscription'
+                    st.rerun()
+                else:
+                    st.session_state.active_tool = item['title']
 
-# تعريف النوافذ كما في الصورة
-windows = [
-    {"icon": "🛡️", "title": "حماية المتجر الذكي", "task": "تأمين المتاجر الإلكترونية وحمايتها"},
-    {"icon": "⚙️", "title": "تحسين محركات البحث", "task": "تحليل SEO وتحسين الظهور"},
-    {"icon": "🧠", "title": "تشخيص الأنظمة بالذكاء الاصطناعي", "task": "إصلاح المشاكل التقنية المعقدة"},
-    {"icon": "💹", "title": "تحليلات المبيعات الذكية", "task": "تحليل البيانات وزيادة الربح"},
-    {"icon": "📈", "title": "المسار الرقمي الاستراتيجي", "task": "رسم خطط التحول الرقمي"},
-    {"icon": "👤", "title": "بناء الهوية الرقمية", "task": "تصميم وتطوير العلامة التجارية"},
-    {"icon": "👁️", "title": "الرؤى", "task": "تقديم رؤى استراتيجية للمستقبل"},
-    {"icon": "💎", "title": "باقة الاشتراك المحترف", "task": "تقديم عروض الاشتراك VIP"},
-    {"icon": "🤖", "title": "بوت ذكي", "task": "مساعد ذكي شامل لخدمتك"}
-]
-
-# رسم النوافذ (Grid)
-st.markdown("<div class='grid-container'>", unsafe_allow_html=True)
-cols = st.columns(3)
-
-for i, win in enumerate(windows):
-    with cols[i % 3]:
-        # عرض الشكل الجمالي
-        st.markdown(f"""
-            <div class='nav-card'>
-                <div style='font-size: 2.5rem;'>{win['icon']}</div>
-                <h3>{win['title']}</h3>
+# --- صفحة الاشتراك (Subscription) ---
+elif st.session_state.page == 'subscription':
+    st.markdown("""
+        <div class="sub-page">
+            <h1 style="color:#00f2ff; text-shadow:0 0 15px #00f2ff;">اشتراك النخبة</h1>
+            <p style="color:#fff; font-size:1.2rem;">وصول كامل لجميع حلول أثير للتقنية</p>
+            <div style="font-size:3.5rem; font-weight:900; color:#d4af37; margin:20px 0;">49$</div>
+            <div style="background:rgba(0,0,0,0.5); padding:20px; border-radius:15px; border:1px solid #d4af37; text-align:right;">
+                <p style="color:#d4af37;">Payoneer: SADAM.ALHAJ007@GMAIL.COM</p>
+                <p style="color:#34a853; font-size:0.8rem;">USDT: TKCvNEvz59717dp5QZbrwCqCzTQqjrNxCX</p>
             </div>
-        """, unsafe_allow_html=True)
-        
-        # تفعيل الزر المخفي للعمل
-        if st.button("Open", key=f"win_{i}"):
-            st.session_state.active_win = win
-
-st.markdown("</div>", unsafe_allow_html=True)
-
-# تفعيل البوت عند الضغط على أي نافذة
-if 'active_win' in st.session_state:
-    st.markdown("<br><hr style='border-color:#d4af37;'>", unsafe_allow_html=True)
-    st.markdown(f"<h2 style='text-align:center; color:#d4af37;'>وحدة: {st.session_state.active_win['title']}</h2>", unsafe_allow_html=True)
+            <br>
+            <p style="color:#fff;">يرجى إرسال إيصال الدفع لتفعيل العضوية</p>
+    """, unsafe_allow_html=True)
     
-    user_query = st.text_input("صف المشكلة أو الطلب هنا ليقوم البوت بمعالجته:", placeholder="مثلاً: كيف أحمي متجري من الاختراق؟")
-    
-    if st.button("بدء التشخيص الذكي ⚡"):
-        if user_query:
-            with st.spinner('جاري الاتصال بالعقل الاصطناعي لأثير...'):
-                ans = atheer_bot(st.session_state.active_win['task'], user_query)
-                st.markdown(f"<div class='bot-response'>{ans}</div>", unsafe_allow_html=True)
+    if st.button("العودة للرئيسية"):
+        st.session_state.page = 'home'
+        st.rerun()
+    st.markdown("</div>", unsafe_allow_html=True)
 
-# التذييل (بيانات الدفع الخاصة بك)
-st.markdown("<br><br><br>", unsafe_allow_html=True)
-st.markdown(f"""
-    <div style='text-align:center; padding:30px; background:rgba(212,175,55,0.05); border-radius:50px;'>
-        <p style='color:#d4af37; font-weight:bold;'>SADAM.ALHAJ007@GMAIL.COM : Payoneer</p>
-        <p style='color:#34a853; font-size:0.8rem;'>USDT: TKCvNEvz59717dp5QZbrwCqCzTQqjrNxCX</p>
-    </div>
-""", unsafe_allow_html=True)
+# --- محرك الذكاء الاصطناعي (عند الضغط على النوافذ الأخرى) ---
+if 'active_tool' in st.session_state and st.session_state.page == 'home':
+    st.markdown(f'<div style="max-width:800px; margin:20px auto; padding:20px; border:1px solid #d4af37; color:#d4af37; border-radius:15px; background:rgba(212,175,55,0.05);">تم تفعيل وحدة: {st.session_state.active_tool} <br> جاري تهيئة التشخيص الذكي...</div>', unsafe_allow_html=True)
